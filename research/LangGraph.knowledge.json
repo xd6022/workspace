@@ -1,47 +1,476 @@
 {
   "topic": "LangGraph",
+  "version": 1,
   "concepts": [
-    { "id": "langgraph", "name": "LangGraph", "tags": ["ai", "agent", "orchestration", "framework"], "summary": "低层级 Agent 编排框架和运行时，用图来建模长时间运行、有状态的 AI Agent 工作流" },
-    { "id": "state", "name": "State", "tags": ["concept", "core"], "summary": "工作流的共享数据结构，贯穿所有节点" },
-    { "id": "nodes", "name": "Nodes", "tags": ["concept", "core"], "summary": "执行具体逻辑的函数，接收当前 State 并返回更新" },
-    { "id": "edges", "name": "Edges", "tags": ["concept", "core"], "summary": "决定下一步执行哪个 Node 的路由函数，支持固定跳转和条件分支" },
-    { "id": "reducer", "name": "Reducer", "tags": ["concept", "state"], "summary": "定义 State 各字段的更新策略：覆盖、追加、自定义合并" },
-    { "id": "checkpointer", "name": "Checkpointer", "tags": ["concept", "persistence"], "summary": "持久化层，保存每一执行步的状态快照，是实现 Durable Execution 的基础" },
-    { "id": "thread", "name": "Thread", "tags": ["concept", "persistence"], "summary": "工作流实例标识符，通过 thread_id 追踪一次执行的完整历史" },
-    { "id": "task", "name": "Task", "tags": ["concept", "durability"], "summary": "包裹副作用函数（API 调用、随机数），保证可恢复执行时不重复触发" },
-    { "id": "stategraph", "name": "StateGraph", "tags": ["api", "graph"], "summary": "核心 Graph API 类，用来构建和编译有状态工作流" },
-    { "id": "functional-api", "name": "Functional API", "tags": ["api", "alternative"], "summary": "另一种编程范式，用单个函数而非图结构定义 Agent" },
-    { "id": "durable-execution", "name": "Durable Execution", "tags": ["feature", "fault-tolerance"], "summary": "工作流在每一步保存进度，中断后可无损恢复，是 LangGraph 最核心的特性" },
-    { "id": "human-in-the-loop", "name": "Human-in-the-Loop", "tags": ["feature", "interaction"], "summary": "人机协作原语，可在任意节点暂停并等待人类决策" },
-    { "id": "super-step", "name": "Super-Step", "tags": ["concept", "execution"], "summary": "图执行的基本时间单位，同一 super-step 内节点可并行，不同 super-step 串行" },
-    { "id": "langchain", "name": "LangChain", "tags": ["framework", "upstream"], "summary": "上层 Agent 框架，提供模型集成、工具调用、提示模板等组件" },
-    { "id": "deep-agents", "name": "Deep Agents", "tags": ["framework", "upstream"], "summary": "基于 LangGraph 的高层 Agent SDK，提供规划、子 Agent、文件系统工具" },
-    { "id": "langsmith", "name": "LangSmith", "tags": ["platform", "observability"], "summary": "可观测性和部署平台，追踪、评估和部署 LangGraph Agent" },
-    { "id": "pregel", "name": "Pregel", "tags": ["inspiration", "google"], "summary": "Google 的大规模图处理系统，LangGraph 图执行模型的原型" },
-    { "id": "apache-beam", "name": "Apache Beam", "tags": ["inspiration"], "summary": "统一批流处理框架，LangGraph 的另一个灵感来源" },
-    { "id": "crewai", "name": "CrewAI", "tags": ["competitor", "multi-agent"], "summary": "多 Agent 框架，偏高层抽象，主打角色扮演式 Agent 协作" },
-    { "id": "autogen", "name": "AutoGen", "tags": ["competitor", "multi-agent"], "summary": "微软的多 Agent 框架，偏高层抽象，支持对话式 Agent 编排" }
+    {
+      "id": "langgraph",
+      "name": "LangGraph",
+      "type": "concept",
+      "tags": ["ai", "agent", "orchestration", "framework", "runtime"],
+      "aliases": [],
+      "summary": "低层级 Agent 编排框架和运行时，用有向图建模长时间运行、有状态的 AI Agent 工作流。",
+      "details": "由 LangChain Inc 开发，灵感来自 Google Pregel 和 Apache Beam。独立于 LangChain，可单独使用。提供 Graph API 和 Functional API 两种编程范式。核心特性：Durable Execution、Human-in-the-Loop、流式处理、全面的记忆系统。",
+      "source_section": "core_concepts",
+      "confidence": 0.95
+    },
+    {
+      "id": "state",
+      "name": "State",
+      "type": "concept",
+      "tags": ["core", "data"],
+      "aliases": ["状态"],
+      "summary": "工作流的共享数据结构，贯穿所有节点，用 TypedDict 或 Pydantic 定义。",
+      "details": "每个字段有独立的 Reducer 控制更新策略。支持 Input/Output/Internal/Private 四种 Schema 分层。节点返回部分更新而非完整 State。",
+      "source_section": "core_concepts",
+      "confidence": 0.95
+    },
+    {
+      "id": "nodes",
+      "name": "Nodes",
+      "type": "concept",
+      "tags": ["core", "execution"],
+      "aliases": ["节点"],
+      "summary": "执行具体逻辑的函数，接收当前 State 并返回更新。节点做实际工作。",
+      "details": "可包含 LLM 调用或任意 Python 代码。节点声明输入/输出 Schema，可写入任意已在图中注册的 State 通道。",
+      "source_section": "core_concepts",
+      "confidence": 0.95
+    },
+    {
+      "id": "edges",
+      "name": "Edges",
+      "type": "concept",
+      "tags": ["core", "routing"],
+      "aliases": ["边"],
+      "summary": "决定下一步执行哪个 Node 的路由函数，支持固定跳转和条件分支。",
+      "details": "分为普通边（固定跳转）和条件边（根据 State 动态选择目标）。条件边返回目标节点名或 END。",
+      "source_section": "core_concepts",
+      "confidence": 0.95
+    },
+    {
+      "id": "reducer",
+      "name": "Reducer",
+      "type": "concept",
+      "tags": ["core", "state"],
+      "aliases": ["合并器"],
+      "summary": "定义 State 各字段更新策略的函数：覆盖、追加或自定义合并逻辑。",
+      "details": "默认 reducer 为覆盖。消息列表常用 operator.add 追加。可通过 Annotated 类型显式指定 reducer。提供 Overwrite 类型绕过 reducer。",
+      "source_section": "core_concepts",
+      "confidence": 0.95
+    },
+    {
+      "id": "checkpointer",
+      "name": "Checkpointer",
+      "type": "concept",
+      "tags": ["core", "persistence"],
+      "aliases": ["检查点"],
+      "summary": "持久化引擎，在每步执行后保存 State 快照，是 Durable Execution 的存储基础。",
+      "details": "支持 MemorySaver、SqliteSaver、PostgresSaver 等后端。通过 thread_id 隔离不同工作流实例的 checkpoint 链。编译图时通过 checkpointer 参数指定。",
+      "source_section": "core_concepts",
+      "confidence": 0.95
+    },
+    {
+      "id": "thread",
+      "name": "Thread",
+      "type": "concept",
+      "tags": ["core", "persistence"],
+      "aliases": ["线程"],
+      "summary": "工作流实例标识符，通过 thread_id 追踪一次执行的完整状态历史。",
+      "details": "同一 thread_id 的多次 invoke 共享 checkpoint 历史，支持中断后恢复。不同 thread 完全隔离。",
+      "source_section": "core_concepts",
+      "confidence": 0.90
+    },
+    {
+      "id": "task",
+      "name": "Task",
+      "type": "concept",
+      "tags": ["core", "durability"],
+      "aliases": [],
+      "summary": "用 @task 装饰器包裹副作用/非确定性操作，保证 Durable Execution 恢复时不重复执行。",
+      "details": "恢复时 Task 直接读取持久化缓存结果，不重新执行原始操作。适用于 API 调用、文件写入、随机数生成等。可在 Graph API 的节点内使用。",
+      "source_section": "core_concepts",
+      "confidence": 0.90
+    },
+    {
+      "id": "stategraph",
+      "name": "StateGraph",
+      "type": "concept",
+      "tags": ["api", "graph"],
+      "aliases": [],
+      "summary": "核心 Graph API 类，通过 add_node → add_edge → compile 构建有状态工作流。",
+      "details": "参数化为用户定义的 State 类型。支持普通边、条件边、子图（subgraph）。编译时进行结构校验并绑定运行时参数（checkpointer、breakpoints）。",
+      "source_section": "core_concepts",
+      "confidence": 0.95
+    },
+    {
+      "id": "functional-api",
+      "name": "Functional API",
+      "type": "concept",
+      "tags": ["api", "alternative"],
+      "aliases": [],
+      "summary": "以单函数定义 Agent 的替代编程范式，内部自动编译为图结构。",
+      "details": "适合简单 Agent 场景，代码更简洁。使用 @entrypoint 和 @task 装饰器标记入口和副作用。内部仍生成 StateGraph，对用户透明。",
+      "source_section": "core_concepts",
+      "confidence": 0.85
+    },
+    {
+      "id": "durable-execution",
+      "name": "Durable Execution",
+      "type": "concept",
+      "tags": ["feature", "fault-tolerance"],
+      "aliases": ["持久执行"],
+      "summary": "LangGraph 最核心的特性：工作流每步自动保存进度，中断后可从最后 checkpoint 无损恢复。",
+      "details": "实现依赖 Checkpointer + Task。三种持久化模式：exit（最快）、async（平衡）、sync（最安全）。恢复时从 checkpoint 重放到中断点，非从中断行继续。",
+      "source_section": "how_it_works",
+      "confidence": 0.95
+    },
+    {
+      "id": "human-in-the-loop",
+      "name": "Human-in-the-Loop",
+      "type": "concept",
+      "tags": ["feature", "interaction"],
+      "aliases": ["人机协作"],
+      "summary": "一等公民的人机协作原语，可在任意节点暂停工作流，等待人工检查或修改 State 后继续。",
+      "details": "使用 interrupt() 暂停，使用 Command(resume=...) 恢复。适用于审批流、关键决策校验、数据标注等场景。",
+      "source_section": "how_it_works",
+      "confidence": 0.90
+    },
+    {
+      "id": "super-step",
+      "name": "Super-Step",
+      "type": "concept",
+      "tags": ["execution", "concurrency"],
+      "aliases": ["超步"],
+      "summary": "图执行的基本调度单位，同一 super-step 内节点可并行，不同 super-step 间串行。",
+      "details": "继承自 Pregel 的批量同步并行模型。所有节点初始 inactive，收到消息变 active。所有 inactive 且无消息在途时图终止。",
+      "source_section": "how_it_works",
+      "confidence": 0.90
+    },
+    {
+      "id": "langchain",
+      "name": "LangChain",
+      "type": "concept",
+      "tags": ["framework", "upstream"],
+      "aliases": [],
+      "summary": "上层 Agent 框架，提供模型集成、工具调用、提示模板等组件。",
+      "details": "与 LangGraph 可组合使用：LangChain 提供积木（模型/工具），LangGraph 提供流水线（编排）。LangChain 的 create_agent 基于 LangGraph 构建。",
+      "source_section": "related_concepts",
+      "confidence": 0.90
+    },
+    {
+      "id": "deep-agents",
+      "name": "Deep Agents",
+      "type": "concept",
+      "tags": ["framework", "high-level"],
+      "aliases": [],
+      "summary": "基于 LangGraph 的高层 Agent SDK，提供规划、子 Agent、文件系统工具等开箱即用能力。",
+      "details": "定位为 Agent Harness，比 LangGraph 更上层。内置任务分解、上下文管理、长期规划等高级功能。适合快速构建复杂 Agent。",
+      "source_section": "related_concepts",
+      "confidence": 0.80
+    },
+    {
+      "id": "langsmith",
+      "name": "LangSmith",
+      "type": "concept",
+      "tags": ["platform", "observability"],
+      "aliases": [],
+      "summary": "LangChain 生态的可观测性和部署平台，用于追踪、评估和部署 LangGraph Agent。",
+      "details": "提供执行追踪、状态可视化、性能指标、Agent 评估等功能。LangSmith Deployment 支持生产级部署。与 LangGraph 原生集成。",
+      "source_section": "related_concepts",
+      "confidence": 0.90
+    },
+    {
+      "id": "pregel",
+      "name": "Pregel",
+      "type": "concept",
+      "tags": ["inspiration", "google", "graph-processing"],
+      "aliases": [],
+      "summary": "Google 的大规模图处理系统，LangGraph 的图执行模型（消息传递 + super-step）直接继承自此。",
+      "details": "Pregel 提出以顶点为中心、消息传递为基础的批量同步并行计算模型。LangGraph 将其思想从大规模图计算迁移到 Agent 工作流编排。",
+      "source_section": "related_concepts",
+      "confidence": 0.95
+    },
+    {
+      "id": "apache-beam",
+      "name": "Apache Beam",
+      "type": "concept",
+      "tags": ["inspiration", "streaming"],
+      "aliases": [],
+      "summary": "统一批流处理框架，LangGraph 的流式 API 设计受其影响。",
+      "details": "Beam 抽象了批处理和流处理的统一编程模型。LangGraph 借鉴了其对有状态流处理的设计思路。",
+      "source_section": "related_concepts",
+      "confidence": 0.85
+    },
+    {
+      "id": "crewai",
+      "name": "CrewAI",
+      "type": "concept",
+      "tags": ["competitor", "multi-agent"],
+      "aliases": [],
+      "summary": "多 Agent 框架，偏高层抽象，主打角色扮演式 Agent 协作。",
+      "details": "定义 Agent 角色（role）、目标（goal）、背景故事（backstory），通过 Task 和 Crew 串联。比 LangGraph 更易上手但灵活性较低。",
+      "source_section": "related_concepts",
+      "confidence": 0.70
+    },
+    {
+      "id": "autogen",
+      "name": "AutoGen",
+      "type": "concept",
+      "tags": ["competitor", "multi-agent", "microsoft"],
+      "aliases": [],
+      "summary": "微软的多 Agent 对话式编排框架，偏高层抽象，支持对话驱动的 Agent 协作。",
+      "details": "核心概念为 ConversableAgent，通过对话模式实现 Agent 间协作。GroupChat 模式支持多 Agent 群组讨论。",
+      "source_section": "related_concepts",
+      "confidence": 0.70
+    }
   ],
   "relations": [
-    { "from": "langgraph", "to": "pregel", "type": "inspired_by", "desc": "图执行模型（消息传递 + super-step）继承自 Pregel" },
-    { "from": "langgraph", "to": "apache-beam", "type": "inspired_by", "desc": "流处理思想影响 LangGraph 的 API 设计" },
-    { "from": "langgraph", "to": "durable-execution", "type": "implements", "desc": "通过 Checkpointer + Task 实现持久执行" },
-    { "from": "langgraph", "to": "human-in-the-loop", "type": "supports", "desc": "内置 interrupt() 和 Command 原语" },
-    { "from": "langgraph", "to": "stategraph", "type": "provides", "desc": "Graph API 的主要入口" },
-    { "from": "langgraph", "to": "functional-api", "type": "provides", "desc": "函数式 API 作为替代范式" },
-    { "from": "langchain", "to": "langgraph", "type": "uses_as_runtime", "desc": "LangChain 用 LangGraph 作为 Agent 编排运行时" },
-    { "from": "deep-agents", "to": "langgraph", "type": "builds_on", "desc": "在 LangGraph 之上封装规划、子Agent、文件系统等高层能力" },
-    { "from": "langsmith", "to": "langgraph", "type": "observes", "desc": "追踪 LangGraph 工作流的每一步执行、状态变化和性能指标" },
-    { "from": "crewai", "to": "langgraph", "type": "competes_with", "desc": "同为 Agent 框架，CrewAI 偏高层角色扮演，LangGraph 偏底层图编排" },
-    { "from": "autogen", "to": "langgraph", "type": "competes_with", "desc": "同为 Agent 框架，AutoGen 偏对话式编排，LangGraph 偏状态机编排" },
-    { "from": "stategraph", "to": "state", "type": "manages", "desc": "StateGraph 以 State 为核心，所有节点读写 State" },
-    { "from": "state", "to": "reducer", "type": "controlled_by", "desc": "State 每个字段通过 Reducer 决定更新策略" },
-    { "from": "nodes", "to": "state", "type": "read_write", "desc": "节点读取当前 State，返回部分更新" },
-    { "from": "edges", "to": "nodes", "type": "route_to", "desc": "边根据当前 State 决定下一个执行的节点" },
-    { "from": "checkpointer", "to": "state", "type": "persists", "desc": "在每步执行后保存 State 快照" },
-    { "from": "checkpointer", "to": "durable-execution", "type": "enables", "desc": "Checkpointer 是 Durable Execution 的存储基础" },
-    { "from": "task", "to": "durable-execution", "type": "enables", "desc": "Task 包裹副作用，保证恢复时使用缓存结果" },
-    { "from": "thread", "to": "checkpointer", "type": "identifies", "desc": "thread_id 关联到特定工作流实例的 checkpoint 历史" },
-    { "from": "super-step", "to": "nodes", "type": "organizes", "desc": "同一 super-step 内的节点并行执行" }
-  ]
+    {
+      "from": "langgraph",
+      "to": "state",
+      "type": "contains",
+      "strength": 0.95,
+      "description": "LangGraph 以 State 为核心数据结构，所有工作流围绕 State 流转构建",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "langgraph",
+      "to": "nodes",
+      "type": "contains",
+      "strength": 0.95,
+      "description": "LangGraph 将业务逻辑封装为 Nodes（节点函数）",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "langgraph",
+      "to": "edges",
+      "type": "contains",
+      "strength": 0.95,
+      "description": "LangGraph 通过 Edges 定义节点间的控制流路由",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "langgraph",
+      "to": "reducer",
+      "type": "contains",
+      "strength": 0.90,
+      "description": "LangGraph 通过 Reducer 机制管理 State 字段的更新策略",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "langgraph",
+      "to": "durable-execution",
+      "type": "implements",
+      "strength": 0.90,
+      "description": "LangGraph 通过 Checkpointer + Task 实现 Durable Execution 特性",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "langgraph",
+      "to": "human-in-the-loop",
+      "type": "supports",
+      "strength": 0.80,
+      "description": "LangGraph 内置 interrupt() / Command 原语支持人机协作",
+      "bidirectional": false,
+      "confidence": 0.90
+    },
+    {
+      "from": "langgraph",
+      "to": "stategraph",
+      "type": "uses",
+      "strength": 0.85,
+      "description": "LangGraph 通过 StateGraph 提供 Graph API 编程入口",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "langgraph",
+      "to": "functional-api",
+      "type": "uses",
+      "strength": 0.75,
+      "description": "LangGraph 同时提供 Functional API 作为替代编程范式",
+      "bidirectional": false,
+      "confidence": 0.85
+    },
+    {
+      "from": "langgraph",
+      "to": "checkpointer",
+      "type": "uses",
+      "strength": 0.85,
+      "description": "LangGraph 使用 Checkpointer 实现状态持久化",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "langgraph",
+      "to": "thread",
+      "type": "uses",
+      "strength": 0.80,
+      "description": "LangGraph 通过 Thread（thread_id）隔离不同工作流实例",
+      "bidirectional": false,
+      "confidence": 0.90
+    },
+    {
+      "from": "langgraph",
+      "to": "task",
+      "type": "uses",
+      "strength": 0.80,
+      "description": "LangGraph 通过 Task 包裹副作用操作以支持 Durable Execution",
+      "bidirectional": false,
+      "confidence": 0.90
+    },
+    {
+      "from": "langgraph",
+      "to": "pregel",
+      "type": "inspired_by",
+      "strength": 0.30,
+      "description": "LangGraph 的图执行模型（消息传递 + super-step）继承自 Pregel",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "langgraph",
+      "to": "apache-beam",
+      "type": "inspired_by",
+      "strength": 0.20,
+      "description": "LangGraph 的流式 API 设计受 Apache Beam 影响",
+      "bidirectional": false,
+      "confidence": 0.85
+    },
+    {
+      "from": "langchain",
+      "to": "langgraph",
+      "type": "uses",
+      "strength": 0.70,
+      "description": "LangChain 使用 LangGraph 作为其 Agent 的编排运行时",
+      "bidirectional": false,
+      "confidence": 0.90
+    },
+    {
+      "from": "deep-agents",
+      "to": "langgraph",
+      "type": "extends",
+      "strength": 0.75,
+      "description": "Deep Agents 在 LangGraph 之上封装规划、子Agent、文件系统等高层能力",
+      "bidirectional": false,
+      "confidence": 0.80
+    },
+    {
+      "from": "langsmith",
+      "to": "langgraph",
+      "type": "supports",
+      "strength": 0.60,
+      "description": "LangSmith 为 LangGraph Agent 提供追踪、评估和部署支持",
+      "bidirectional": false,
+      "confidence": 0.90
+    },
+    {
+      "from": "crewai",
+      "to": "langgraph",
+      "type": "competes_with",
+      "strength": 0.50,
+      "description": "CrewAI 和 LangGraph 同为 Agent 编排框架，CrewAI 偏角色扮演高层抽象，LangGraph 偏底层图编排",
+      "bidirectional": true,
+      "confidence": 0.70
+    },
+    {
+      "from": "autogen",
+      "to": "langgraph",
+      "type": "competes_with",
+      "strength": 0.50,
+      "description": "AutoGen 和 LangGraph 同为 Agent 编排框架，AutoGen 偏对话驱动，LangGraph 偏状态机驱动",
+      "bidirectional": true,
+      "confidence": 0.70
+    },
+    {
+      "from": "checkpointer",
+      "to": "durable-execution",
+      "type": "supports",
+      "strength": 0.85,
+      "description": "Checkpointer 的持久化存储是 Durable Execution 的基础设施",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "task",
+      "to": "durable-execution",
+      "type": "supports",
+      "strength": 0.80,
+      "description": "Task 包裹副作用操作，保证 Durable Execution 恢复时使用缓存结果而非重复执行",
+      "bidirectional": false,
+      "confidence": 0.90
+    },
+    {
+      "from": "thread",
+      "to": "checkpointer",
+      "type": "uses",
+      "strength": 0.80,
+      "description": "Thread 通过 thread_id 关联到特定工作流实例的 checkpoint 链",
+      "bidirectional": false,
+      "confidence": 0.90
+    },
+    {
+      "from": "super-step",
+      "to": "nodes",
+      "type": "uses",
+      "strength": 0.60,
+      "description": "Super-Step 组织 Nodes 的执行调度，同一步内节点并行，步间串行",
+      "bidirectional": false,
+      "confidence": 0.90
+    },
+    {
+      "from": "super-step",
+      "to": "pregel",
+      "type": "inspired_by",
+      "strength": 0.35,
+      "description": "Super-Step 概念直接继承自 Pregel 的批量同步并行模型",
+      "bidirectional": false,
+      "confidence": 0.90
+    },
+    {
+      "from": "state",
+      "to": "reducer",
+      "type": "uses",
+      "strength": 0.90,
+      "description": "State 的每个字段通过 Reducer 控制更新语义",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "nodes",
+      "to": "state",
+      "type": "uses",
+      "strength": 0.90,
+      "description": "Nodes 读取当前 State 并返回部分更新",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "edges",
+      "to": "nodes",
+      "type": "uses",
+      "strength": 0.85,
+      "description": "Edges 根据当前 State 决定下一个执行的 Nodes",
+      "bidirectional": false,
+      "confidence": 0.95
+    },
+    {
+      "from": "stategraph",
+      "to": "state",
+      "type": "uses",
+      "strength": 0.90,
+      "description": "StateGraph 参数化为用户定义的 State 类型，管理 State 的完整生命周期",
+      "bidirectional": false,
+      "confidence": 0.95
+    }
+  ],
+  "meta": {
+    "created_at": "2026-05-09T10:06:00Z",
+    "source": "llm",
+    "confidence": 0.85
+  }
 }

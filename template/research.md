@@ -1,8 +1,11 @@
 ---
-tags: []
-created: {{date}}
 topic: "{{title}}"
-status: draft
+version: 1
+concepts: 0
+relations: 0
+created: {{date}}
+confidence: 0.0
+ir: "[[{{title}}.knowledge.json]]"
 ---
 
 # {{title}}
@@ -31,4 +34,6 @@ status: draft
 
 ---
 
-*关联笔记：* 
+*关联笔记：*
+
+*知识结构：[[{{title}}.knowledge.json]]*
