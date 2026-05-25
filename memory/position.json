@@ -1,0 +1,23 @@
+{
+  "symbol": "510210",
+  "name": "上证综指ETF",
+  "cost": 0.918,
+  "shares": 500,
+  "max_shares": 3000,
+  "updated": "2026-05-22T09:48:00+08:00",
+  "note": "5/22卖500@1.024, 成本降至0.918",
+  "tier_thresholds": {
+    "light": [400, 800],
+    "medium": [1000, 1500],
+    "heavy": [2000, 3000]
+  },
+  "buy_points": {
+    "buy1": {"price": 1.033, "desc": "第一档: 试探回补 500股", "stop_loss": 1.030},
+    "buy2": {"price": 1.047, "desc": "第二档: 趋势修复 500股", "stop_loss": 1.042},
+    "buy3": {"price_min": 0.995, "price_max": 1.000, "desc": "第三档: 真空抄底 500股", "stop_loss": 0.990}
+  },
+  "key_levels": {
+    "strong_resistance": 1.050,
+    "iron_top": 1.058
+  }
+}
