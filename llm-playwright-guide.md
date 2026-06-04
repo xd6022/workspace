@@ -46,6 +46,8 @@
 - **Codegen**：Playwright 内置的代码录制/生成工具
 - **Locator**：Playwright 的元素定位器（role、text、test-id 等）
 - **Self-healing**：测试脚本自动修复因 UI 变化导致的失败
+- **Fixture（夹具）**：Playwright Test 提供的测试上下文对象，如 `page`（浏览器标签页）、`context`（浏览器上下文）、`browser`（浏览器实例）
+- **Browser Context**：浏览器上下文，相当于一个全新的浏览器配置文件，拥有独立的 Cookie、Storage 等
 
 ---
 
@@ -53,15 +55,41 @@
 
 ### 2.1 Playwright
 
-**是什么**：Microsoft 开源的端到端 Web 测试框架，支持 Chromium、WebKit、Firefox。
+**是什么**：Microsoft 开源的端到端 Web 测试框架，支持 Chromium、WebKit、Firefox。简单来说，它就是一个可以通过编程来控制浏览器的工具——想象成一个虚拟用户，能像人一样在网页上点击按钮、填写表单、导航页面、截图保存。
+
+**支持的浏览器**：
+
+| 浏览器 | 渲染引擎 | 平台支持 |
+|--------|---------|----------|
+| Chromium | Blink（与 Chrome 同） | Windows / macOS / Linux |
+| Firefox | Gecko | Windows / macOS / Linux |
+| WebKit | WebKit（与 Safari 同） | Windows / macOS / Linux |
+
+> 注：Playwright 使用的是官方浏览器的测试版本（Chromium 而非 Google Chrome，WebKit 而非 Safari），但行为与官方版本高度一致。
+
+**多语言支持**：
+
+| 语言 | 安装命令 | 适用场景 |
+|------|---------|----------|
+| JavaScript / TypeScript | `npm init playwright@latest` | 前端团队、Node.js 项目 |
+| Python | `pip install playwright` | Python 生态、AI/ML 项目 |
+| Java | Maven/Gradle 依赖 | 企业级 Java 项目 |
+| .NET | NuGet 包 | 微软技术栈 |
 
 **核心能力**：
 - 跨浏览器自动化（Chrome、Firefox、Safari）
-- 自动等待元素可交互
+- **自动等待**：执行每个操作前自动等待元素变为可操作状态（附加到 DOM、可见、稳定、可接收事件、已启用），断言也会自动重试直到条件满足或超时
+- **测试隔离**：Browser Context 概念，每个测试拥有独立的 localStorage、sessionStorage、cookies，互不影响（创建开销毫秒级）
 - 网络请求拦截和模拟
 - 移动端模拟（Android Chrome、Mobile Safari）
 - 录制回放（Codegen）
 - Trace Viewer（时间旅行调试）
+
+**主要应用场景**：
+- **端到端（E2E）测试**：模拟真实用户场景，测试完整流程
+- **Web 爬虫和数据抓取**：渲染 JavaScript 动态加载的内容
+- **网页自动化**：自动签到、批量下载、填写报告等重复操作
+- **生成截图和 PDF**：对网页截图或保存为 PDF
 
 **系统要求**：
 - Node.js 20.x / 22.x / 24.x
@@ -72,7 +100,70 @@
 npm init playwright@latest
 # 或
 pnpm create playwright
+# 或
+yarn create playwright
 ```
+
+安装过程会提示：选择语言（JS/TS）、是否安装测试示例、是否下载浏览器。
+
+**手动安装**（已有项目时）：
+```bash
+# 安装 Playwright Test 作为开发依赖
+npm i -D @playwright/test
+
+# 如果只需要浏览器自动化库（不用测试运行器）
+npm i playwright
+
+# 安装所有浏览器
+npx playwright install
+
+# 或只安装特定浏览器
+npx playwright install chromium
+npx playwright install firefox
+```
+
+**国内镜像加速**（浏览器二进制约 400-500MB）：
+```bash
+export PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright/
+npx playwright install
+```
+
+**Linux 系统依赖**：
+```bash
+npx playwright install-deps
+```
+
+**Playwright 产品矩阵**：
+
+| 产品 | 用途 | 安装方式 |
+|------|------|----------|
+| Playwright Test | 完整的端到端测试框架 | `npm init playwright@latest` |
+| Playwright Library | 浏览器自动化脚本库 | `npm i playwright` |
+| Playwright MCP | AI Agent 浏览器控制（MCP 协议） | `npx @playwright/mcp@latest` |
+| Playwright CLI | Coding Agent 命令行工具 | `npm i -g @playwright/cli@latest` |
+| VS Code 扩展 | 编辑器内测试调试与录制 | VS Code Marketplace |
+
+**Playwright vs 其他测试工具**：
+
+| 对比维度 | Playwright | Puppeteer | Cypress | Selenium |
+|---------|-----------|-----------|---------|----------|
+| 浏览器支持 | Chromium + Firefox + WebKit | 仅 Chromium（有限 Firefox） | Chromium 系 + 实验性 | Chrome, Firefox, Safari, IE |
+| 测试运行器 | 内置完整 Test Runner | 无内置，需配合 Jest/Mocha | 内置 | 需配合 TestNG/JUnit |
+| 自动等待 | 全面内置 | 需手动处理 | 内置但有限 | 需手动处理 |
+| 多标签/多窗口 | 完全支持 | 有限 | 不支持 | 支持 |
+| iframe 支持 | 原生支持 | 支持 | 受限 | 支持 |
+| 并行执行 | 原生支持 | 需自己管理 | 需付费 Dashboard | 需自己配置 |
+| 执行速度 | 快（进程外执行） | 快 | 较慢（浏览器内执行） | 较慢 |
+| 诞生时间 | 2020（微软） | 2017（Google） | 2014 | 2004 |
+| API 设计 | 简洁现代 | 简洁 | 友好 | 早期接口多 |
+
+**一句话总结**：Playwright = 年轻小钢炮，速度快、API 友好、支持现代网页特性；Selenium = 老牌全能选手，生态庞大；Cypress = 开发体验好但多浏览器受限；Puppeteer = 轻量但只支持 Chromium。
+
+**Playwright 的四大核心特性**：
+1. **真正的跨浏览器支持**：唯一同时支持 Chromium、Firefox、WebKit 的测试框架，每个浏览器有专门维护的驱动层
+2. **自动等待机制**：从根本上解决不稳定测试（flaky tests）问题
+3. **测试隔离**：Browser Context 概念，测试之间零干扰，创建开销毫秒级
+4. **多语言支持**：JS/TS、Python、Java、.NET 四种语言 API，共享相同设计理念
 
 ### 2.2 LLM（大语言模型）
 
@@ -390,13 +481,45 @@ llm-playwright-test/
 
 ### Phase 1：熟悉基础（1-2 天）
 
-1. 安装 Playwright，跑通基础测试
-   ```bash
-   npm init playwright@latest
-   npx playwright test --ui  # 用 UI 模式感受一下
-   ```
-2. 学习 Playwright Codegen 录制测试
-3. 了解 Locator、Assertion、Fixture 等核心概念
+**Step 1：安装并运行示例测试**
+```bash
+npm init playwright@latest
+npx playwright test
+# 预期输出：6 tests across 3 browsers, all passed
+```
+
+**Step 2：写第一个测试**
+```typescript
+// tests/first-test.spec.ts
+import { test, expect } from '@playwright/test';
+
+test('访问百度首页并检查标题', async ({ page }) => {
+  await page.goto('https://www.baidu.com/');
+  await expect(page).toHaveTitle(/百度/);
+});
+```
+```bash
+npx playwright test tests/first-test.spec.ts
+```
+
+**Step 3：理解核心 API**
+- `page.goto(url)` — 导航到指定 URL（waitUntil 选项：'load'、'domcontentloaded'、'networkidle'）
+- `expect(page).toHaveTitle()` — 页面标题断言
+- `expect(page).toHaveURL()` — URL 断言
+- `expect(locator).toBeVisible()` — 元素可见性断言
+- 所有操作都是异步的，必须加 `await`
+
+**Step 4：用 UI 模式探索**
+```bash
+npx playwright test --ui  # 带 UI 的测试模式
+```
+
+**Step 5：学习 Codegen 录制**
+```bash
+npx playwright codegen https://your-app.com
+```
+
+**Step 6：了解 Locator、Assertion、Fixture 等核心概念**
 
 ### Phase 2：接入 LLM（2-3 天）
 
@@ -453,6 +576,7 @@ python your_first_agent.py
 - Browser Use Cloud: https://cloud.browser-use.com
 
 ### 学习资源
+- **菜鸟教程 Playwright**: https://www.runoob.com/playwright/playwright-intro.html（中文入门友好）
 - Playwright Solutions（社区博客）: https://playwrightsolutions.com
 - Playwright VS Code 扩展: https://marketplace.visualstudio.com/items?itemName=ms-playwright.playwright
 - WebArena（Web Agent 评测）: https://webarena.dev
